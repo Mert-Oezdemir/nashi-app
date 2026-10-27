@@ -52,6 +52,17 @@ scripts/build-app.sh release
 
 The public app is written to `build/Nashi.app`. Large runtimes are installed through its setup screen. Source builds use an ad-hoc signature unless you provide your own ignored signing profile. Signing private keys are never distributed. [Windows build instructions](windows/README.md).
 
+## Check external tools without installing anything
+
+```sh
+nashi-cli readiness
+```
+
+The JSON response lists readiness for media and office tool groups, plus
+per-tool availability for FFmpeg, FFprobe, yt-dlp, Deno, LibreOffice and
+ExifTool. Missing components are reported rather than downloaded; local
+image and subtitle operations can still be used independently.
+
 ## Run safe multi-step file recipes
 
 The macOS CLI accepts small JSON recipes of up to 10 steps for up to 100
