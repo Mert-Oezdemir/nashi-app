@@ -3,6 +3,11 @@ import Foundation
 public enum NashiCommandLine {
     public static func run(arguments args:[String] = CommandLine.arguments) -> Int32 {
 do {
+    if args.count==2,args[1]=="readiness" {
+        let result=dependencyReadiness()
+        let data=try JSONSerialization.data(withJSONObject:result,options:[.prettyPrinted,.sortedKeys])
+        print(String(decoding:data,as:UTF8.self));return 0
+    }
     if args.count>=2,args[1]=="recipe" {
         guard args.count>=4 else { throw NashiError.invalidInput("Usage: nashi-cli recipe RECIPE.json FILE... [--output DIRECTORY] [--json]") }
         let data=try Data(contentsOf:URL(fileURLWithPath:args[2]))
@@ -47,7 +52,7 @@ do {
     if args.count==2,args[1]=="dependencies" {
         var result:[String:String]=[:];for name in ["ffmpeg","ffprobe","soffice","exiftool"] { result[name]=try Dependencies.executable(name).path };print(String(decoding:try JSONSerialization.data(withJSONObject:result,options:.sortedKeys),as:UTF8.self));return 0
     }
-    guard args.count>=4 else { print("Usage: nashi-cli convert FORMAT FILE... [--options JSON]\n       nashi-cli tool TOOL_ID FILE... [--options JSON]\n       nashi-cli catalog\n       nashi-cli capabilities FORMAT [--multiple]\n       nashi-cli recipe RECIPE.json FILE... [--output DIRECTORY] [--json]");return 64 }
+    guard args.count>=4 else { print("Usage: nashi-cli convert FORMAT FILE... [--options JSON]\n       nashi-cli tool TOOL_ID FILE... [--options JSON]\n       nashi-cli catalog\n       nashi-cli capabilities FORMAT [--multiple]\n       nashi-cli readiness\n       nashi-cli recipe RECIPE.json FILE... [--output DIRECTORY] [--json]");return 64 }
     var options=OperationOptions(), paths=Array(args.dropFirst(3))
     let jsonOutput=paths.contains("--json");paths.removeAll{$0=="--json"}
     if let i=paths.firstIndex(of:"--options"),i+1<paths.count {
@@ -74,6 +79,19 @@ do {
     return 0
 } catch { fputs("\(error.localizedDescription)\n",stderr);return 1 }
 
+    }
+
+    /// Read-only external tool readiness. Never triggers component downloads.
+    public static func dependencyReadiness(resolve: (String) -> URL? = { try? Dependencies.executable($0) }) -> [String:Any] {
+        let names = ["ffmpeg","ffprobe","yt-dlp","deno","soffice","exiftool"]
+        let available = Dictionary(uniqueKeysWithValues:names.map { ($0,resolve($0) != nil) })
+        let status = ToolSetupStatus { available[$0] == true ? URL(fileURLWithPath:"/available/\($0)") : nil }
+        return [
+            "mediaReady":status.mediaReady,
+            "officeReady":status.officeReady,
+            "tools":available,
+            "missing":names.filter { available[$0] != true }
+        ]
     }
 
     /// Describes the same format/tool choices offered by the desktop wheel,
