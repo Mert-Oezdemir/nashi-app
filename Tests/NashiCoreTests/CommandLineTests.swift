@@ -16,6 +16,32 @@ final class CommandLineTests:XCTestCase {
         XCTAssertNil(NashiCommandLine.capabilities(format:"invalid/format"))
         XCTAssertNil(NashiCommandLine.capabilities(format:"unsupported"))
     }
+    func testRecipePublishesOnlyCompleteOutputsAndPreservesOriginals() throws {
+        let root=try OutputFiles.temporaryDirectory();defer{try? FileManager.default.removeItem(at:root)}
+        let input=root.appendingPathComponent("captions.srt"),destination=root.appendingPathComponent("Output")
+        let original=Data("1\n00:00:01,100 --> 00:00:02,200\nMerhaba dünya\n".utf8)
+        try original.write(to:input)
+        let recipe=Data(#"{"steps":[{"convert":"vtt"},{"convert":"srt"}]}"#.utf8)
+        let outputs=try NashiRecipe.run(definition:recipe,inputs:[input],destination:destination)
+        XCTAssertEqual(outputs.count,1)
+        XCTAssertTrue(FileManager.default.fileExists(atPath:outputs[0].path))
+        XCTAssertEqual(try Data(contentsOf:input),original)
+        XCTAssertTrue(try String(contentsOf:outputs[0],encoding:.utf8).contains("Merhaba dünya"))
+        let next=try NashiRecipe.run(definition:recipe,inputs:[input],destination:destination)
+        XCTAssertNotEqual(outputs[0].path,next[0].path)
+        XCTAssertEqual(try Data(contentsOf:input),original)
+    }
+    func testRecipeRejectsUnsupportedStepsWithoutPublishingOrChangingSource() throws {
+        let root=try OutputFiles.temporaryDirectory();defer{try? FileManager.default.removeItem(at:root)}
+        let input=root.appendingPathComponent("captions.srt"),destination=root.appendingPathComponent("Output")
+        let original=Data("1\n00:00:00,100 --> 00:00:01,200\nPrivate source\n".utf8);try original.write(to:input)
+        let invalid=Data(#"{"steps":[{"convert":"vtt"},{"convert":"png"}]}"#.utf8)
+        XCTAssertThrowsError(try NashiRecipe.run(definition:invalid,inputs:[input],destination:destination))
+        XCTAssertEqual(try Data(contentsOf:input),original)
+        let published=(try? FileManager.default.contentsOfDirectory(at:destination,includingPropertiesForKeys:nil)) ?? []
+        XCTAssertTrue(published.isEmpty)
+        XCTAssertThrowsError(try NashiRecipe.run(definition:Data(#"{"steps":[{"tool":"joinVideos"}]}"#.utf8),inputs:[input]))
+    }
     func testDependencyDiscoveryReturnsTheExifToolScriptInsteadOfItsDirectory() throws {
         let script=try Dependencies.executable("exiftool")
         XCTAssertTrue(try script.resourceValues(forKeys:[.isRegularFileKey]).isRegularFile == true)
