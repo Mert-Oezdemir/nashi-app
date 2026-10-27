@@ -30,7 +30,7 @@ do {
     if args.count==2,args[1]=="dependencies" {
         var result:[String:String]=[:];for name in ["ffmpeg","ffprobe","soffice","exiftool"] { result[name]=try Dependencies.executable(name).path };print(String(decoding:try JSONSerialization.data(withJSONObject:result,options:.sortedKeys),as:UTF8.self));return 0
     }
-    guard args.count>=4 else { print("Usage: nashi-cli convert FORMAT FILE... [--options JSON]\n       nashi-cli tool TOOL_ID FILE... [--options JSON]\n       nashi-cli catalog\\n       nashi-cli capabilities FORMAT [--multiple]");return 64 }
+    guard args.count>=4 else { print("Usage: nashi-cli convert FORMAT FILE... [--options JSON]\n       nashi-cli tool TOOL_ID FILE... [--options JSON]\n       nashi-cli catalog\n       nashi-cli capabilities FORMAT [--multiple]");return 64 }
     var options=OperationOptions(), paths=Array(args.dropFirst(3))
     let jsonOutput=paths.contains("--json");paths.removeAll{$0=="--json"}
     if let i=paths.firstIndex(of:"--options"),i+1<paths.count {
@@ -74,7 +74,7 @@ do {
             "format":normalized,
             "multiple":multiple,
             "destinations":FeatureCatalog.formats(for:inputs),
-            "tools":FeatureCatalog.tools(for:inputs).map(\\.rawValue),
+            "tools":FeatureCatalog.tools(for:inputs).map(\.rawValue),
         ]
     }
 
