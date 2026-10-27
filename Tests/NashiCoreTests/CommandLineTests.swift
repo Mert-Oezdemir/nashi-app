@@ -16,6 +16,15 @@ final class CommandLineTests:XCTestCase {
         XCTAssertNil(NashiCommandLine.capabilities(format:"invalid/format"))
         XCTAssertNil(NashiCommandLine.capabilities(format:"unsupported"))
     }
+    func testReadinessReportsUnavailableComponentsWithoutInstallation() throws {
+        let readiness=NashiCommandLine.dependencyReadiness { name in
+            ["ffmpeg","ffprobe","yt-dlp","deno"].contains(name) ? URL(fileURLWithPath:"/fixture/"+name):nil
+        }
+        XCTAssertEqual(readiness["mediaReady"] as? Bool,true)
+        XCTAssertEqual(readiness["officeReady"] as? Bool,false)
+        XCTAssertEqual((readiness["tools"] as? [String:Bool])?["exiftool"],false)
+        XCTAssertEqual(readiness["missing"] as? [String],["soffice","exiftool"])
+    }
     func testRecipePublishesOnlyCompleteOutputsAndPreservesOriginals() throws {
         let root=try OutputFiles.temporaryDirectory();defer{try? FileManager.default.removeItem(at:root)}
         let input=root.appendingPathComponent("captions.srt"),destination=root.appendingPathComponent("Output")
