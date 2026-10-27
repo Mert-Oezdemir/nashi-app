@@ -3,6 +3,23 @@ import Foundation
 public enum NashiCommandLine {
     public static func run(arguments args:[String] = CommandLine.arguments) -> Int32 {
 do {
+    if args.count>=2,args[1]=="recipe" {
+        guard args.count>=4 else { throw NashiError.invalidInput("Usage: nashi-cli recipe RECIPE.json FILE... [--output DIRECTORY] [--json]") }
+        let data=try Data(contentsOf:URL(fileURLWithPath:args[2]))
+        var paths=Array(args.dropFirst(3))
+        let jsonOutput=paths.contains("--json");paths.removeAll{$0=="--json"}
+        var destination:URL?
+        if let index=paths.firstIndex(of:"--output") {
+            guard index+1<paths.count else { throw NashiError.invalidInput("Missing recipe output directory.") }
+            destination=URL(fileURLWithPath:paths[index+1],isDirectory:true)
+            paths.removeSubrange(index...index+1)
+        }
+        guard !paths.isEmpty,paths.allSatisfy({!$0.hasPrefix("--")}) else { throw NashiError.invalidInput("Choose input files.") }
+        let outputs=try NashiRecipe.run(definition:data,inputs:paths.map{URL(fileURLWithPath:$0)},destination:destination)
+        if jsonOutput { print(String(decoding:try JSONEncoder().encode(outputs.map(\.path)),as:UTF8.self)) }
+        else { for output in outputs { print(output.path) } }
+        return 0
+    }
     if args.count>=2,args[1]=="capabilities" {
         guard args.count==3 || (args.count==4 && args[3]=="--multiple") else {
             throw NashiError.invalidInput("Usage: nashi-cli capabilities FORMAT [--multiple]")
@@ -30,7 +47,7 @@ do {
     if args.count==2,args[1]=="dependencies" {
         var result:[String:String]=[:];for name in ["ffmpeg","ffprobe","soffice","exiftool"] { result[name]=try Dependencies.executable(name).path };print(String(decoding:try JSONSerialization.data(withJSONObject:result,options:.sortedKeys),as:UTF8.self));return 0
     }
-    guard args.count>=4 else { print("Usage: nashi-cli convert FORMAT FILE... [--options JSON]\n       nashi-cli tool TOOL_ID FILE... [--options JSON]\n       nashi-cli catalog\n       nashi-cli capabilities FORMAT [--multiple]");return 64 }
+    guard args.count>=4 else { print("Usage: nashi-cli convert FORMAT FILE... [--options JSON]\n       nashi-cli tool TOOL_ID FILE... [--options JSON]\n       nashi-cli catalog\n       nashi-cli capabilities FORMAT [--multiple]\n       nashi-cli recipe RECIPE.json FILE... [--output DIRECTORY] [--json]");return 64 }
     var options=OperationOptions(), paths=Array(args.dropFirst(3))
     let jsonOutput=paths.contains("--json");paths.removeAll{$0=="--json"}
     if let i=paths.firstIndex(of:"--options"),i+1<paths.count {
