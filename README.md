@@ -52,6 +52,33 @@ scripts/build-app.sh release
 
 The public app is written to `build/Nashi.app`. Large runtimes are installed through its setup screen. Source builds use an ad-hoc signature unless you provide your own ignored signing profile. Signing private keys are never distributed. [Windows build instructions](windows/README.md).
 
+## Run safe multi-step file recipes
+
+The macOS CLI accepts small JSON recipes of up to 10 steps for up to 100
+files. Supported steps convert formats or apply **single-output** tools;
+multi-output/special batch tools are rejected.
+
+```json
+{
+  "steps": [
+    { "tool": "editImage", "options": { "width": 1200 } },
+    { "convert": "jpg" },
+    { "tool": "removeMetadata" }
+  ]
+}
+```
+
+```sh
+nashi-cli recipe photo-recipe.json input.png other.png --output ./exports --json
+```
+
+Steps are run in a private scratch folder, the original files are preserved,
+and completed outputs are published together using Nashi's export transaction.
+A failing step publishes **no** new files. Existing destination filenames are
+never replaced. Some conversions and operations intentionally produce multiple
+outputs (e.g., splitting PDFs); recipes reject those jobs. Recipes do not
+download dependencies or silently install external tools.
+
 ## Discover file capabilities from the terminal
 
 The `nashi-cli` executable can show the same conversion destinations and tools
